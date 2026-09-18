@@ -1,0 +1,6 @@
+{
+  "name": "Simulador 3D de Física y Vectores",
+  "description": "Simulador educativo interactivo de física en 3D con suma vectorial de fuerzas, equilibrio estático y tensiones en cables.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
