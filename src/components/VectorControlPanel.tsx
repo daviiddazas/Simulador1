@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ForceVector } from '../types';
 import { cartesianToSpherical, sphericalToCartesian } from '../utils/physics';
-import { Plus, Trash2, Eye, EyeOff, Sliders, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Trash2, Eye, EyeOff, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface VectorControlPanelProps {
   forces: ForceVector[];
@@ -9,6 +9,7 @@ interface VectorControlPanelProps {
   onUpdateForce: (id: string, updated: Partial<ForceVector>) => void;
   onRemoveForce: (id: string) => void;
   onToggleVisibility: (id: string) => void;
+  theme?: 'light' | 'dark';
 }
 
 const COLOR_PALETTE = [
@@ -27,7 +28,10 @@ export const VectorControlPanel: React.FC<VectorControlPanelProps> = ({
   onUpdateForce,
   onRemoveForce,
   onToggleVisibility,
+  theme = 'dark',
 }) => {
+  const isLight = theme === 'light';
+
   // Store coordinate mode per vector: 'cartesian' | 'spherical'
   const [coordModes, setCoordModes] = useState<Record<string, 'cartesian' | 'spherical'>>({});
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -47,18 +51,29 @@ export const VectorControlPanel: React.FC<VectorControlPanelProps> = ({
   };
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+    <div className="space-y-3 font-mono">
+      {/* Header */}
+      <div
+        className={`flex items-center justify-between pb-2 border-b ${
+          isLight ? 'border-slate-200' : 'border-slate-800'
+        }`}
+      >
         <div>
-          <h3 className="text-sm font-semibold text-slate-100 uppercase tracking-wider font-mono">
+          <h3
+            className={`text-sm font-bold uppercase tracking-wider ${
+              isLight ? 'text-slate-900' : 'text-slate-100'
+            }`}
+          >
             Vectores de Fuerza ({forces.length})
           </h3>
-          <p className="text-xs text-slate-400">Componentes o Magnitud y Ángulos 3D</p>
+          <p className={`text-xs font-sans ${isLight ? 'text-slate-600 font-medium' : 'text-slate-400'}`}>
+            Componentes Cartesianas o Magnitud y Ángulos 3D
+          </p>
         </div>
         <button
           type="button"
           onClick={onAddForce}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white transition-colors shadow-sm cursor-pointer"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white transition-colors shadow-sm cursor-pointer"
         >
           <Plus className="w-3.5 h-3.5" />
           Añadir Fuerza
@@ -66,19 +81,25 @@ export const VectorControlPanel: React.FC<VectorControlPanelProps> = ({
       </div>
 
       {forces.length === 0 ? (
-        <div className="text-center py-6 border border-dashed border-slate-800 rounded-xl bg-slate-900/40">
-          <p className="text-xs text-slate-400 mb-2">No hay fuerzas aplicadas actualmente.</p>
+        <div
+          className={`text-center py-6 border border-dashed rounded-xl ${
+            isLight
+              ? 'border-slate-300 bg-slate-50 text-slate-600'
+              : 'border-slate-800 bg-slate-900/40 text-slate-400'
+          }`}
+        >
+          <p className="text-xs mb-2">No hay fuerzas aplicadas actualmente.</p>
           <button
             type="button"
             onClick={onAddForce}
-            className="text-xs text-cyan-400 hover:underline font-mono"
+            className="text-xs text-cyan-600 dark:text-cyan-400 hover:underline font-bold"
           >
             + Agregar primera fuerza
           </button>
         </div>
       ) : (
-        <div className="space-y-2.5 max-h-[360px] overflow-y-auto pr-1">
-          {forces.map((f, idx) => {
+        <div className="space-y-2.5 max-h-[400px] overflow-y-auto pr-1">
+          {forces.map((f) => {
             const mode = coordModes[f.id] || 'cartesian';
             const isCollapsed = collapsed[f.id] || false;
             const spherical = cartesianToSpherical(f.x, f.y, f.z);
@@ -86,35 +107,51 @@ export const VectorControlPanel: React.FC<VectorControlPanelProps> = ({
             return (
               <div
                 key={f.id}
-                className="bg-slate-900/90 border border-slate-800 rounded-xl p-3 shadow-md hover:border-slate-700 transition-colors"
+                className={`rounded-xl p-3 shadow-md border transition-colors ${
+                  isLight
+                    ? 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                    : 'bg-slate-900/90 border-slate-800 hover:border-slate-700'
+                }`}
               >
                 {/* Header */}
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
                     <span
-                      className="w-3 h-3 rounded-full shrink-0"
+                      className="w-3.5 h-3.5 rounded-full shrink-0 shadow-xs"
                       style={{ backgroundColor: f.color }}
                     />
                     <input
                       type="text"
                       value={f.name}
                       onChange={(e) => onUpdateForce(f.id, { name: e.target.value })}
-                      className="bg-transparent text-xs font-mono font-bold text-slate-100 hover:bg-slate-800/60 px-1 py-0.5 rounded focus:outline-none focus:bg-slate-800 w-24"
+                      className={`text-xs font-bold px-1.5 py-0.5 rounded border focus:outline-none w-24 ${
+                        isLight
+                          ? 'bg-white border-slate-300 text-slate-900 focus:border-cyan-500'
+                          : 'bg-slate-800/80 border-slate-700 text-slate-100 focus:border-cyan-400'
+                      }`}
                     />
-                    <span className="text-[11px] font-mono text-slate-400">
+                    <span
+                      className={`text-[11px] font-semibold truncate ${
+                        isLight ? 'text-slate-700' : 'text-slate-300'
+                      }`}
+                    >
                       |F| = {spherical.magnitude} N
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 shrink-0">
                     {/* Toggle coordinate system */}
                     <button
                       type="button"
                       onClick={() => toggleCoordMode(f.id)}
-                      className={`px-1.5 py-0.5 text-[10px] font-mono rounded transition-colors ${
+                      className={`px-1.5 py-0.5 text-[10px] rounded font-bold transition-colors cursor-pointer ${
                         mode === 'spherical'
-                          ? 'bg-purple-900/60 text-purple-300 border border-purple-600/40'
-                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                          ? isLight
+                            ? 'bg-purple-100 text-purple-800 border border-purple-300'
+                            : 'bg-purple-900/60 text-purple-300 border border-purple-600/50'
+                          : isLight
+                          ? 'bg-slate-200 text-slate-700 hover:bg-slate-300 border border-slate-300'
+                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700'
                       }`}
                       title="Alternar entre Cartesiano (Fx, Fy, Fz) y Esférico (|F|, θ, φ)"
                     >
@@ -125,8 +162,12 @@ export const VectorControlPanel: React.FC<VectorControlPanelProps> = ({
                     <button
                       type="button"
                       onClick={() => onToggleVisibility(f.id)}
-                      className={`p-1 rounded transition-colors ${
-                        f.visible ? 'text-slate-300 hover:text-white' : 'text-slate-600 hover:text-slate-400'
+                      className={`p-1 rounded transition-colors cursor-pointer ${
+                        f.visible
+                          ? isLight
+                            ? 'text-slate-700 hover:text-slate-950'
+                            : 'text-slate-300 hover:text-white'
+                          : 'text-slate-400 hover:text-slate-600 opacity-50'
                       }`}
                       title={f.visible ? 'Ocultar vector' : 'Mostrar vector'}
                     >
@@ -137,7 +178,9 @@ export const VectorControlPanel: React.FC<VectorControlPanelProps> = ({
                     <button
                       type="button"
                       onClick={() => toggleCollapse(f.id)}
-                      className="p-1 text-slate-400 hover:text-slate-200 rounded transition-colors"
+                      className={`p-1 rounded transition-colors cursor-pointer ${
+                        isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-slate-200'
+                      }`}
                     >
                       {isCollapsed ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
                     </button>
@@ -146,7 +189,7 @@ export const VectorControlPanel: React.FC<VectorControlPanelProps> = ({
                     <button
                       type="button"
                       onClick={() => onRemoveForce(f.id)}
-                      className="p-1 text-slate-500 hover:text-rose-400 rounded transition-colors"
+                      className="p-1 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
                       title="Eliminar fuerza"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -156,13 +199,19 @@ export const VectorControlPanel: React.FC<VectorControlPanelProps> = ({
 
                 {/* Body when expanded */}
                 {!isCollapsed && (
-                  <div className="mt-3 pt-2.5 border-t border-slate-800/80 space-y-2.5">
+                  <div
+                    className={`mt-3 pt-2.5 border-t space-y-2.5 ${
+                      isLight ? 'border-slate-200' : 'border-slate-800'
+                    }`}
+                  >
                     {mode === 'cartesian' ? (
                       // Cartesian Inputs: Fx, Fy, Fz
                       <div className="space-y-2">
                         {/* Fx */}
                         <div className="flex items-center gap-2">
-                          <label className="text-xs font-mono font-semibold text-rose-400 w-7">Fx:</label>
+                          <label className={`text-xs font-bold w-7 ${isLight ? 'text-rose-600' : 'text-rose-400'}`}>
+                            Fx:
+                          </label>
                           <input
                             type="range"
                             min={-150}
@@ -170,22 +219,32 @@ export const VectorControlPanel: React.FC<VectorControlPanelProps> = ({
                             step={1}
                             value={f.x}
                             onChange={(e) => onUpdateForce(f.id, { x: parseFloat(e.target.value) || 0 })}
-                            className="flex-1 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-rose-500"
+                            className={`flex-1 h-1.5 rounded-lg appearance-none cursor-pointer accent-rose-500 ${
+                              isLight ? 'bg-slate-200' : 'bg-slate-800'
+                            }`}
                           />
                           <div className="flex items-center gap-1 w-16">
                             <input
                               type="number"
                               value={f.x}
                               onChange={(e) => onUpdateForce(f.id, { x: parseFloat(e.target.value) || 0 })}
-                              className="w-full bg-slate-800 text-right text-xs font-mono text-slate-100 rounded px-1.5 py-0.5 border border-slate-700 focus:outline-none focus:border-rose-500"
+                              className={`w-full text-right text-xs font-bold rounded px-1.5 py-0.5 border focus:outline-none ${
+                                isLight
+                                  ? 'bg-white text-slate-900 border-slate-300 focus:border-rose-500'
+                                  : 'bg-slate-800 text-slate-100 border-slate-700 focus:border-rose-500'
+                              }`}
                             />
-                            <span className="text-[10px] text-slate-500">N</span>
+                            <span className={`text-[10px] font-semibold ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                              N
+                            </span>
                           </div>
                         </div>
 
                         {/* Fy */}
                         <div className="flex items-center gap-2">
-                          <label className="text-xs font-mono font-semibold text-emerald-400 w-7">Fy:</label>
+                          <label className={`text-xs font-bold w-7 ${isLight ? 'text-emerald-700' : 'text-emerald-400'}`}>
+                            Fy:
+                          </label>
                           <input
                             type="range"
                             min={-150}
@@ -193,22 +252,32 @@ export const VectorControlPanel: React.FC<VectorControlPanelProps> = ({
                             step={1}
                             value={f.y}
                             onChange={(e) => onUpdateForce(f.id, { y: parseFloat(e.target.value) || 0 })}
-                            className="flex-1 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                            className={`flex-1 h-1.5 rounded-lg appearance-none cursor-pointer accent-emerald-500 ${
+                              isLight ? 'bg-slate-200' : 'bg-slate-800'
+                            }`}
                           />
                           <div className="flex items-center gap-1 w-16">
                             <input
                               type="number"
                               value={f.y}
                               onChange={(e) => onUpdateForce(f.id, { y: parseFloat(e.target.value) || 0 })}
-                              className="w-full bg-slate-800 text-right text-xs font-mono text-slate-100 rounded px-1.5 py-0.5 border border-slate-700 focus:outline-none focus:border-emerald-500"
+                              className={`w-full text-right text-xs font-bold rounded px-1.5 py-0.5 border focus:outline-none ${
+                                isLight
+                                  ? 'bg-white text-slate-900 border-slate-300 focus:border-emerald-500'
+                                  : 'bg-slate-800 text-slate-100 border-slate-700 focus:border-emerald-500'
+                              }`}
                             />
-                            <span className="text-[10px] text-slate-500">N</span>
+                            <span className={`text-[10px] font-semibold ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                              N
+                            </span>
                           </div>
                         </div>
 
                         {/* Fz */}
                         <div className="flex items-center gap-2">
-                          <label className="text-xs font-mono font-semibold text-blue-400 w-7">Fz:</label>
+                          <label className={`text-xs font-bold w-7 ${isLight ? 'text-blue-700' : 'text-blue-400'}`}>
+                            Fz:
+                          </label>
                           <input
                             type="range"
                             min={-150}
@@ -216,16 +285,24 @@ export const VectorControlPanel: React.FC<VectorControlPanelProps> = ({
                             step={1}
                             value={f.z}
                             onChange={(e) => onUpdateForce(f.id, { z: parseFloat(e.target.value) || 0 })}
-                            className="flex-1 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                            className={`flex-1 h-1.5 rounded-lg appearance-none cursor-pointer accent-blue-500 ${
+                              isLight ? 'bg-slate-200' : 'bg-slate-800'
+                            }`}
                           />
                           <div className="flex items-center gap-1 w-16">
                             <input
                               type="number"
                               value={f.z}
                               onChange={(e) => onUpdateForce(f.id, { z: parseFloat(e.target.value) || 0 })}
-                              className="w-full bg-slate-800 text-right text-xs font-mono text-slate-100 rounded px-1.5 py-0.5 border border-slate-700 focus:outline-none focus:border-blue-500"
+                              className={`w-full text-right text-xs font-bold rounded px-1.5 py-0.5 border focus:outline-none ${
+                                isLight
+                                  ? 'bg-white text-slate-900 border-slate-300 focus:border-blue-500'
+                                  : 'bg-slate-800 text-slate-100 border-slate-700 focus:border-blue-500'
+                              }`}
                             />
-                            <span className="text-[10px] text-slate-500">N</span>
+                            <span className={`text-[10px] font-semibold ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                              N
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -234,7 +311,9 @@ export const VectorControlPanel: React.FC<VectorControlPanelProps> = ({
                       <div className="space-y-2">
                         {/* Magnitude */}
                         <div className="flex items-center gap-2">
-                          <label className="text-xs font-mono font-semibold text-amber-400 w-7">|F|:</label>
+                          <label className={`text-xs font-bold w-7 ${isLight ? 'text-amber-700' : 'text-amber-400'}`}>
+                            |F|:
+                          </label>
                           <input
                             type="range"
                             min={0}
@@ -246,7 +325,9 @@ export const VectorControlPanel: React.FC<VectorControlPanelProps> = ({
                               const cart = sphericalToCartesian(newMag, spherical.azimuthTheta, spherical.elevationPhi);
                               onUpdateForce(f.id, cart);
                             }}
-                            className="flex-1 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                            className={`flex-1 h-1.5 rounded-lg appearance-none cursor-pointer accent-amber-500 ${
+                              isLight ? 'bg-slate-200' : 'bg-slate-800'
+                            }`}
                           />
                           <div className="flex items-center gap-1 w-16">
                             <input
@@ -258,15 +339,23 @@ export const VectorControlPanel: React.FC<VectorControlPanelProps> = ({
                                 const cart = sphericalToCartesian(newMag, spherical.azimuthTheta, spherical.elevationPhi);
                                 onUpdateForce(f.id, cart);
                               }}
-                              className="w-full bg-slate-800 text-right text-xs font-mono text-slate-100 rounded px-1.5 py-0.5 border border-slate-700 focus:outline-none focus:border-amber-500"
+                              className={`w-full text-right text-xs font-bold rounded px-1.5 py-0.5 border focus:outline-none ${
+                                isLight
+                                  ? 'bg-white text-slate-900 border-slate-300 focus:border-amber-500'
+                                  : 'bg-slate-800 text-slate-100 border-slate-700 focus:border-amber-500'
+                              }`}
                             />
-                            <span className="text-[10px] text-slate-500">N</span>
+                            <span className={`text-[10px] font-semibold ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                              N
+                            </span>
                           </div>
                         </div>
 
                         {/* Azimuth θ (XZ plane) */}
                         <div className="flex items-center gap-2">
-                          <label className="text-xs font-mono font-semibold text-cyan-400 w-7">θ:</label>
+                          <label className={`text-xs font-bold w-7 ${isLight ? 'text-cyan-700' : 'text-cyan-400'}`}>
+                            θ:
+                          </label>
                           <input
                             type="range"
                             min={-180}
@@ -278,7 +367,9 @@ export const VectorControlPanel: React.FC<VectorControlPanelProps> = ({
                               const cart = sphericalToCartesian(spherical.magnitude, newTheta, spherical.elevationPhi);
                               onUpdateForce(f.id, cart);
                             }}
-                            className="flex-1 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                            className={`flex-1 h-1.5 rounded-lg appearance-none cursor-pointer accent-cyan-500 ${
+                              isLight ? 'bg-slate-200' : 'bg-slate-800'
+                            }`}
                           />
                           <div className="flex items-center gap-1 w-16">
                             <input
@@ -289,15 +380,23 @@ export const VectorControlPanel: React.FC<VectorControlPanelProps> = ({
                                 const cart = sphericalToCartesian(spherical.magnitude, newTheta, spherical.elevationPhi);
                                 onUpdateForce(f.id, cart);
                               }}
-                              className="w-full bg-slate-800 text-right text-xs font-mono text-slate-100 rounded px-1.5 py-0.5 border border-slate-700 focus:outline-none focus:border-cyan-500"
+                              className={`w-full text-right text-xs font-bold rounded px-1.5 py-0.5 border focus:outline-none ${
+                                isLight
+                                  ? 'bg-white text-slate-900 border-slate-300 focus:border-cyan-500'
+                                  : 'bg-slate-800 text-slate-100 border-slate-700 focus:border-cyan-500'
+                              }`}
                             />
-                            <span className="text-[10px] text-slate-500">°</span>
+                            <span className={`text-[10px] font-semibold ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                              °
+                            </span>
                           </div>
                         </div>
 
                         {/* Elevation φ (vertical above XZ) */}
                         <div className="flex items-center gap-2">
-                          <label className="text-xs font-mono font-semibold text-pink-400 w-7">φ:</label>
+                          <label className={`text-xs font-bold w-7 ${isLight ? 'text-pink-700' : 'text-pink-400'}`}>
+                            φ:
+                          </label>
                           <input
                             type="range"
                             min={-90}
@@ -309,7 +408,9 @@ export const VectorControlPanel: React.FC<VectorControlPanelProps> = ({
                               const cart = sphericalToCartesian(spherical.magnitude, spherical.azimuthTheta, newPhi);
                               onUpdateForce(f.id, cart);
                             }}
-                            className="flex-1 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-pink-500"
+                            className={`flex-1 h-1.5 rounded-lg appearance-none cursor-pointer accent-pink-500 ${
+                              isLight ? 'bg-slate-200' : 'bg-slate-800'
+                            }`}
                           />
                           <div className="flex items-center gap-1 w-16">
                             <input
@@ -320,9 +421,15 @@ export const VectorControlPanel: React.FC<VectorControlPanelProps> = ({
                                 const cart = sphericalToCartesian(spherical.magnitude, spherical.azimuthTheta, newPhi);
                                 onUpdateForce(f.id, cart);
                               }}
-                              className="w-full bg-slate-800 text-right text-xs font-mono text-slate-100 rounded px-1.5 py-0.5 border border-slate-700 focus:outline-none focus:border-pink-500"
+                              className={`w-full text-right text-xs font-bold rounded px-1.5 py-0.5 border focus:outline-none ${
+                                isLight
+                                  ? 'bg-white text-slate-900 border-slate-300 focus:border-pink-500'
+                                  : 'bg-slate-800 text-slate-100 border-slate-700 focus:border-pink-500'
+                              }`}
                             />
-                            <span className="text-[10px] text-slate-500">°</span>
+                            <span className={`text-[10px] font-semibold ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                              °
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -330,15 +437,19 @@ export const VectorControlPanel: React.FC<VectorControlPanelProps> = ({
 
                     {/* Color Swatch Picker */}
                     <div className="flex items-center justify-between pt-1">
-                      <span className="text-[10px] text-slate-500 uppercase font-mono">Color:</span>
-                      <div className="flex items-center gap-1">
+                      <span className={`text-[10px] uppercase font-bold ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                        Color:
+                      </span>
+                      <div className="flex items-center gap-1.5">
                         {COLOR_PALETTE.map((c) => (
                           <button
                             key={c}
                             type="button"
                             onClick={() => onUpdateForce(f.id, { color: c })}
-                            className={`w-3.5 h-3.5 rounded-full transition-transform ${
-                              f.color === c ? 'scale-125 ring-1 ring-white' : 'opacity-70 hover:opacity-100'
+                            className={`w-3.5 h-3.5 rounded-full transition-transform cursor-pointer ${
+                              f.color === c
+                                ? 'scale-125 ring-2 ring-cyan-500'
+                                : 'opacity-70 hover:opacity-100 hover:scale-110'
                             }`}
                             style={{ backgroundColor: c }}
                           />

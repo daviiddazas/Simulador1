@@ -6,11 +6,9 @@ import { Viewport3D } from './components/Viewport3D';
 import { VectorControlPanel } from './components/VectorControlPanel';
 import { SuspendedSystemPanel } from './components/SuspendedSystemPanel';
 import { SummaryTable } from './components/SummaryTable';
-import { StandaloneExportModal } from './components/StandaloneExportModal';
 import {
   Layers,
   Compass,
-  FileDown,
   Settings2,
   Grid,
   Sliders,
@@ -18,12 +16,17 @@ import {
   ChevronRight,
   ChevronLeft,
   Info,
-  Maximize2
+  Maximize2,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 export default function App() {
   // Mode: 'free' (libre) or 'suspended' (suspendido)
   const [mode, setMode] = useState<SimulationMode>('free');
+
+  // Simulation environment theme: 'dark' (espacial) or 'light' (laboratorio claro)
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
 
   // Applied Forces
   const [forces, setForces] = useState<ForceVector[]>([
@@ -52,7 +55,6 @@ export default function App() {
   // UI Panels state
   const [activeTab, setActiveTab] = useState<'vectors' | 'system' | 'summary'>('vectors');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [showScenarioMenu, setShowScenarioMenu] = useState(false);
 
   // Real-time Physics Calculations
@@ -125,7 +127,11 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-slate-100 font-sans select-none">
+    <div
+      className={`flex h-screen w-screen overflow-hidden font-sans select-none transition-colors duration-300 ${
+        theme === 'light' ? 'bg-slate-100 text-slate-900' : 'bg-slate-950 text-slate-100'
+      }`}
+    >
       {/* 3D Viewport Main Area */}
       <div className="relative flex-1 h-full min-w-0">
         <Viewport3D
@@ -141,37 +147,41 @@ export default function App() {
           showComponents={showComponents}
           showLabels={showLabels}
           vectorScale={vectorScale}
+          theme={theme}
+          cableCount={cableCount}
         />
 
-        {/* Top Header Bar inside Viewport */}
-        <header className="absolute top-4 left-4 right-4 pointer-events-none flex items-center justify-between z-20">
-          <div className="pointer-events-auto flex items-center gap-2 bg-slate-900/85 backdrop-blur-md border border-slate-700/80 px-3.5 py-2 rounded-2xl shadow-xl">
-            <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse" />
-            <div>
-              <h1 className="text-xs font-bold font-mono uppercase tracking-wider text-slate-100">
-                Simulador 3D de Física y Vectores
-              </h1>
-              <span className="text-[10px] text-slate-400 font-mono">
-                Three.js • Suma Vectorial y Equilibrio Estático
-              </span>
-            </div>
-          </div>
-
+        {/* Top Controls inside Viewport (Right aligned - Left side has stacked perspective and stats) */}
+        <header className="absolute top-4 right-4 pointer-events-none flex items-center gap-2 z-20">
           <div className="pointer-events-auto flex items-center gap-2">
             {/* Presets Button */}
             <div className="relative">
               <button
                 type="button"
                 onClick={() => setShowScenarioMenu(!showScenarioMenu)}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs font-mono font-medium rounded-xl bg-slate-900/90 hover:bg-slate-800 text-cyan-300 border border-slate-700/80 backdrop-blur-md transition-colors shadow-lg cursor-pointer"
+                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-mono font-medium rounded-xl backdrop-blur-md transition-colors shadow-lg cursor-pointer border ${
+                  theme === 'light'
+                    ? 'bg-white/90 hover:bg-slate-100 text-cyan-800 border-slate-300 shadow-slate-300/40'
+                    : 'bg-slate-900/90 hover:bg-slate-800 text-cyan-300 border-slate-700/80'
+                }`}
               >
-                <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                <Sparkles className="w-3.5 h-3.5 text-cyan-500" />
                 <span>Casos Predefinidos</span>
               </button>
 
               {showScenarioMenu && (
-                <div className="absolute right-0 mt-2 w-72 bg-slate-900/95 border border-slate-700 rounded-2xl p-2 shadow-2xl backdrop-blur-xl z-30 space-y-1 animate-fade-in">
-                  <div className="text-[10px] font-mono uppercase tracking-wider text-slate-400 px-2 py-1 font-semibold">
+                <div
+                  className={`absolute right-0 mt-2 w-72 border rounded-2xl p-2 shadow-2xl backdrop-blur-xl z-30 space-y-1 animate-fade-in ${
+                    theme === 'light'
+                      ? 'bg-white/95 border-slate-300 text-slate-800'
+                      : 'bg-slate-900/95 border-slate-700 text-slate-100'
+                  }`}
+                >
+                  <div
+                    className={`text-[10px] font-mono uppercase tracking-wider px-2 py-1 font-semibold ${
+                      theme === 'light' ? 'text-slate-500' : 'text-slate-400'
+                    }`}
+                  >
                     Experimentos de Física
                   </div>
                   {PRESET_SCENARIOS.map((preset) => (
@@ -179,10 +189,18 @@ export default function App() {
                       key={preset.id}
                       type="button"
                       onClick={() => handleLoadScenario(preset)}
-                      className="w-full text-left p-2 rounded-xl hover:bg-slate-800/80 transition-colors block text-xs"
+                      className={`w-full text-left p-2 rounded-xl transition-colors block text-xs cursor-pointer ${
+                        theme === 'light'
+                          ? 'hover:bg-slate-100 text-slate-800'
+                          : 'hover:bg-slate-800/80 text-slate-200'
+                      }`}
                     >
-                      <div className="font-semibold text-slate-200 font-mono">{preset.name}</div>
-                      <div className="text-[11px] text-slate-400 line-clamp-2 mt-0.5">
+                      <div className="font-semibold font-mono">{preset.name}</div>
+                      <div
+                        className={`text-[11px] line-clamp-2 mt-0.5 ${
+                          theme === 'light' ? 'text-slate-500' : 'text-slate-400'
+                        }`}
+                      >
                         {preset.description}
                       </div>
                     </button>
@@ -191,22 +209,15 @@ export default function App() {
               )}
             </div>
 
-            {/* Export Standalone HTML Button */}
-            <button
-              type="button"
-              onClick={() => setIsExportModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs font-mono font-semibold rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white border border-cyan-400/40 backdrop-blur-md transition-colors shadow-lg cursor-pointer"
-              title="Descargar código completo index.html autónomo"
-            >
-              <FileDown className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Exportar index.html</span>
-            </button>
-
             {/* Toggle Sidebar Collapse */}
             <button
               type="button"
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 text-slate-300 hover:text-white bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 rounded-xl backdrop-blur-md transition-colors shadow-lg"
+              className={`p-2 rounded-xl backdrop-blur-md transition-colors shadow-lg border cursor-pointer ${
+                theme === 'light'
+                  ? 'text-slate-700 hover:text-slate-900 bg-white/90 hover:bg-slate-100 border-slate-300'
+                  : 'text-slate-300 hover:text-white bg-slate-900/90 hover:bg-slate-800 border-slate-700/80'
+              }`}
               title={isSidebarOpen ? 'Ocultar Panel Lateral' : 'Mostrar Panel Lateral'}
             >
               {isSidebarOpen ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
@@ -214,42 +225,61 @@ export default function App() {
           </div>
         </header>
 
-        {/* Floating Quick Stats Indicator (at top center) */}
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 pointer-events-none z-10 flex items-center gap-3 bg-slate-900/80 backdrop-blur-md border border-slate-800 px-3.5 py-1.5 rounded-full text-xs font-mono">
-          <span className="text-slate-400">Modo:</span>
-          <span className="font-bold text-cyan-300 uppercase">
-            {mode === 'free' ? 'Objeto Libre' : `Suspendido (${cableCount} Cables)`}
-          </span>
-          <span className="text-slate-600">•</span>
-          <span className="text-slate-400">|F_net|:</span>
-          <span className={`font-bold ${activeNetForce.magnitude < 0.05 ? 'text-emerald-400' : 'text-amber-400'}`}>
-            {activeNetForce.magnitude.toFixed(1)} N
-          </span>
-          <span className="text-slate-600">•</span>
-          <span
-            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-              equilibriumResult.isEquilibrium
-                ? 'bg-emerald-950 text-emerald-300 border border-emerald-800'
-                : 'bg-amber-950 text-amber-300 border border-amber-800'
+        {/* Botón Simplificado de Ambiente (Inferior Derecha) */}
+        <div className="absolute bottom-4 right-4 z-20 pointer-events-auto">
+          <button
+            type="button"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-mono font-bold shadow-lg backdrop-blur-md border transition-all cursor-pointer ${
+              theme === 'light'
+                ? 'bg-white/95 border-slate-300 text-slate-800 hover:bg-slate-100 shadow-slate-300/40'
+                : 'bg-slate-900/90 border-slate-700/80 text-slate-200 hover:bg-slate-800 shadow-black/50'
             }`}
+            title={theme === 'dark' ? 'Cambiar a Ambiente Claro' : 'Cambiar a Ambiente Oscuro'}
           >
-            {equilibriumResult.isEquilibrium ? 'Equilibrio' : 'Dinámico'}
-          </span>
+            {theme === 'dark' ? (
+              <>
+                <Sun className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                <span>☀️ Claro</span>
+              </>
+            ) : (
+              <>
+                <Moon className="w-3.5 h-3.5 text-cyan-600 fill-cyan-600" />
+                <span>🌙 Oscuro</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
 
       {/* Control Sidebar HUD */}
       {isSidebarOpen && (
-        <aside className="w-96 h-full bg-slate-900/95 backdrop-blur-xl border-l border-slate-800 flex flex-col shadow-2xl z-30">
+        <aside
+          className={`w-96 h-full backdrop-blur-xl border-l flex flex-col shadow-2xl z-30 transition-colors ${
+            theme === 'light'
+              ? 'bg-white/95 border-slate-200 text-slate-800'
+              : 'bg-slate-900/95 border-slate-800 text-slate-100'
+          }`}
+        >
           {/* Mode Switch Tabs */}
-          <div className="p-3 border-b border-slate-800">
-            <div className="grid grid-cols-2 p-1 bg-slate-950 rounded-xl text-xs font-mono font-semibold">
+          <div
+            className={`p-3 border-b ${
+              theme === 'light' ? 'border-slate-200 bg-slate-50/80' : 'border-slate-800 bg-slate-950/40'
+            }`}
+          >
+            <div
+              className={`grid grid-cols-2 p-1 rounded-xl text-xs font-mono font-semibold ${
+                theme === 'light' ? 'bg-slate-200/80' : 'bg-slate-950'
+              }`}
+            >
               <button
                 type="button"
                 onClick={() => setMode('free')}
-                className={`py-2 rounded-lg transition-all text-center ${
+                className={`py-2 rounded-lg transition-all text-center cursor-pointer ${
                   mode === 'free'
                     ? 'bg-cyan-600 text-white shadow'
+                    : theme === 'light'
+                    ? 'text-slate-600 hover:text-slate-900'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -258,9 +288,11 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setMode('suspended')}
-                className={`py-2 rounded-lg transition-all text-center ${
+                className={`py-2 rounded-lg transition-all text-center cursor-pointer ${
                   mode === 'suspended'
                     ? 'bg-blue-600 text-white shadow'
+                    : theme === 'light'
+                    ? 'text-slate-600 hover:text-slate-900'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -270,13 +302,19 @@ export default function App() {
           </div>
 
           {/* Sub Navigation Tabs */}
-          <div className="flex border-b border-slate-800 bg-slate-900 text-xs font-mono">
+          <div
+            className={`flex border-b text-xs font-mono ${
+              theme === 'light' ? 'border-slate-200 bg-slate-100/70' : 'border-slate-800 bg-slate-900'
+            }`}
+          >
             <button
               type="button"
               onClick={() => setActiveTab('vectors')}
-              className={`flex-1 py-2 text-center border-b-2 transition-colors ${
+              className={`flex-1 py-2 text-center border-b-2 transition-colors cursor-pointer ${
                 activeTab === 'vectors'
-                  ? 'border-cyan-400 text-cyan-300 font-bold bg-slate-800/40'
+                  ? 'border-cyan-500 text-cyan-600 font-bold bg-cyan-50/50'
+                  : theme === 'light'
+                  ? 'border-transparent text-slate-600 hover:text-slate-900'
                   : 'border-transparent text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -286,9 +324,11 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setActiveTab('system')}
-                className={`flex-1 py-2 text-center border-b-2 transition-colors ${
+                className={`flex-1 py-2 text-center border-b-2 transition-colors cursor-pointer ${
                   activeTab === 'system'
-                    ? 'border-blue-400 text-blue-300 font-bold bg-slate-800/40'
+                    ? 'border-blue-500 text-blue-600 font-bold bg-blue-50/50'
+                    : theme === 'light'
+                    ? 'border-transparent text-slate-600 hover:text-slate-900'
                     : 'border-transparent text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -298,9 +338,11 @@ export default function App() {
             <button
               type="button"
               onClick={() => setActiveTab('summary')}
-              className={`flex-1 py-2 text-center border-b-2 transition-colors ${
+              className={`flex-1 py-2 text-center border-b-2 transition-colors cursor-pointer ${
                 activeTab === 'summary'
-                  ? 'border-amber-400 text-amber-300 font-bold bg-slate-800/40'
+                  ? 'border-amber-500 text-amber-600 font-bold bg-amber-50/50'
+                  : theme === 'light'
+                  ? 'border-transparent text-slate-600 hover:text-slate-900'
                   : 'border-transparent text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -317,6 +359,7 @@ export default function App() {
                 onUpdateForce={handleUpdateForce}
                 onRemoveForce={handleRemoveForce}
                 onToggleVisibility={handleToggleVisibility}
+                theme={theme}
               />
             )}
 
@@ -331,6 +374,7 @@ export default function App() {
                 anchors={anchors}
                 onUpdateAnchor={handleUpdateAnchor}
                 equilibriumResult={equilibriumResult}
+                theme={theme}
               />
             )}
 
@@ -344,17 +388,28 @@ export default function App() {
                 anchors={anchors}
                 cableCount={cableCount}
                 equilibriumResult={equilibriumResult}
+                theme={theme}
               />
             )}
 
             {/* Viewport Display Settings (always accessible at bottom of tabs) */}
-            <div className="pt-2 border-t border-slate-800">
-              <div className="flex items-center gap-1.5 text-xs font-mono font-semibold text-slate-400 mb-2">
-                <Settings2 className="w-3.5 h-3.5 text-cyan-400" />
+            <div className={`pt-2 border-t ${theme === 'light' ? 'border-slate-200' : 'border-slate-800'}`}>
+              <div
+                className={`flex items-center gap-1.5 text-xs font-mono font-semibold mb-2 ${
+                  theme === 'light' ? 'text-slate-700' : 'text-slate-400'
+                }`}
+              >
+                <Settings2 className="w-3.5 h-3.5 text-cyan-500" />
                 Opciones de Visualización 3D
               </div>
               <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
-                <label className="flex items-center gap-2 text-slate-300 cursor-pointer bg-slate-950/60 p-2 rounded-lg border border-slate-800/80 hover:border-slate-700">
+                <label
+                  className={`flex items-center gap-2 cursor-pointer p-2 rounded-lg border transition-colors ${
+                    theme === 'light'
+                      ? 'bg-slate-50 border-slate-200 text-slate-800 hover:border-slate-300'
+                      : 'bg-slate-950/60 border-slate-800/80 text-slate-300 hover:border-slate-700'
+                  }`}
+                >
                   <input
                     type="checkbox"
                     checked={showGrid}
@@ -363,7 +418,13 @@ export default function App() {
                   />
                   <span>Rejilla (Grid)</span>
                 </label>
-                <label className="flex items-center gap-2 text-slate-300 cursor-pointer bg-slate-950/60 p-2 rounded-lg border border-slate-800/80 hover:border-slate-700">
+                <label
+                  className={`flex items-center gap-2 cursor-pointer p-2 rounded-lg border transition-colors ${
+                    theme === 'light'
+                      ? 'bg-slate-50 border-slate-200 text-slate-800 hover:border-slate-300'
+                      : 'bg-slate-950/60 border-slate-800/80 text-slate-300 hover:border-slate-700'
+                  }`}
+                >
                   <input
                     type="checkbox"
                     checked={showAxes}
@@ -372,7 +433,13 @@ export default function App() {
                   />
                   <span>Ejes XYZ</span>
                 </label>
-                <label className="flex items-center gap-2 text-slate-300 cursor-pointer bg-slate-950/60 p-2 rounded-lg border border-slate-800/80 hover:border-slate-700">
+                <label
+                  className={`flex items-center gap-2 cursor-pointer p-2 rounded-lg border transition-colors ${
+                    theme === 'light'
+                      ? 'bg-slate-50 border-slate-200 text-slate-800 hover:border-slate-300'
+                      : 'bg-slate-950/60 border-slate-800/80 text-slate-300 hover:border-slate-700'
+                  }`}
+                >
                   <input
                     type="checkbox"
                     checked={showLabels}
@@ -381,7 +448,13 @@ export default function App() {
                   />
                   <span>Etiquetas 3D</span>
                 </label>
-                <label className="flex items-center gap-2 text-slate-300 cursor-pointer bg-slate-950/60 p-2 rounded-lg border border-slate-800/80 hover:border-slate-700">
+                <label
+                  className={`flex items-center gap-2 cursor-pointer p-2 rounded-lg border transition-colors ${
+                    theme === 'light'
+                      ? 'bg-slate-50 border-slate-200 text-slate-800 hover:border-slate-300'
+                      : 'bg-slate-950/60 border-slate-800/80 text-slate-300 hover:border-slate-700'
+                  }`}
+                >
                   <input
                     type="checkbox"
                     checked={showComponents}
@@ -393,10 +466,20 @@ export default function App() {
               </div>
 
               {/* Vector Scaling Slider */}
-              <div className="mt-3 bg-slate-950/60 p-2 rounded-lg border border-slate-800/80">
-                <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 mb-1">
+              <div
+                className={`mt-3 p-2 rounded-lg border ${
+                  theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/60 border-slate-800/80'
+                }`}
+              >
+                <div
+                  className={`flex items-center justify-between text-[11px] font-mono mb-1 ${
+                    theme === 'light' ? 'text-slate-600' : 'text-slate-400'
+                  }`}
+                >
                   <span>Escala visual de flechas:</span>
-                  <span className="text-slate-200">{(vectorScale * 100).toFixed(1)}%</span>
+                  <span className={`font-semibold ${theme === 'light' ? 'text-slate-900' : 'text-slate-200'}`}>
+                    {(vectorScale * 100).toFixed(1)}%
+                  </span>
                 </div>
                 <input
                   type="range"
@@ -405,25 +488,27 @@ export default function App() {
                   step={0.005}
                   value={vectorScale}
                   onChange={(e) => setVectorScale(parseFloat(e.target.value))}
-                  className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                  className={`w-full h-1 rounded-lg appearance-none cursor-pointer accent-cyan-500 ${
+                    theme === 'light' ? 'bg-slate-300' : 'bg-slate-800'
+                  }`}
                 />
               </div>
             </div>
           </div>
 
           {/* Quick Footer info */}
-          <div className="p-3 border-t border-slate-800 bg-slate-950/70 text-[11px] font-mono text-slate-400 flex items-center justify-between">
+          <div
+            className={`p-3 border-t text-[11px] font-mono flex items-center justify-between ${
+              theme === 'light'
+                ? 'border-slate-200 bg-slate-50 text-slate-600'
+                : 'border-slate-800 bg-slate-950/70 text-slate-400'
+            }`}
+          >
             <span>Arrastra para rotar • Rueda para zoom</span>
-            <span className="text-cyan-400 font-semibold">ΣF = 0</span>
+            <span className="text-cyan-500 font-semibold">ΣF = 0</span>
           </div>
         </aside>
       )}
-
-      {/* Standalone Export Modal */}
-      <StandaloneExportModal
-        isOpen={isExportModalOpen}
-        onClose={() => setIsExportModalOpen(false)}
-      />
     </div>
   );
 }

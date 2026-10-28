@@ -18,6 +18,8 @@ interface Viewport3DProps {
   showComponents: boolean;
   showLabels: boolean;
   vectorScale: number; // Scale factor: pixels/units per Newton
+  theme?: 'light' | 'dark';
+  cableCount?: number;
 }
 
 export const Viewport3D: React.FC<Viewport3DProps> = ({
@@ -33,6 +35,8 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   showComponents,
   showLabels,
   vectorScale,
+  theme = 'dark',
+  cableCount,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -51,41 +55,57 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   // Object position: in free mode at (0, 0, 0); in suspended mode at (0, 1.2, 0)
   const objectPos = mode === 'suspended' ? new THREE.Vector3(0, 1.2, 0) : new THREE.Vector3(0, 0, 0);
 
-  // Helper to create text sprite for labels in 3D
-  const createTextSprite = (text: string, color = '#ffffff', bgColor = 'rgba(15, 23, 42, 0.85)', fontSize = 28) => {
+  // Helper to create text sprite for labels in 3D (no bounding box, crisp environment-adaptive contrast)
+  const createTextSprite = (
+    text: string,
+    color = theme === 'light' ? '#0f172a' : '#ffffff',
+    fontSize = 24,
+    hasBg = false
+  ) => {
     const canvas = document.createElement('canvas');
-    canvas.width = 300;
-    canvas.height = 80;
+    canvas.width = 440;
+    canvas.height = 100;
     const ctx = canvas.getContext('2d');
     if (!ctx) return new THREE.Object3D();
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Pill background
-    ctx.fillStyle = bgColor;
-    const radius = 16;
-    const x = 10, y = 10, w = canvas.width - 20, h = canvas.height - 20;
-    ctx.beginPath();
-    ctx.moveTo(x + radius, y);
-    ctx.lineTo(x + w - radius, y);
-    ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
-    ctx.lineTo(x + w, y + h - radius);
-    ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
-    ctx.lineTo(x + radius, y + h);
-    ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
-    ctx.lineTo(x, y + radius);
-    ctx.quadraticCurveTo(x, y, x + radius, y);
-    ctx.closePath();
-    ctx.fill();
+    if (hasBg) {
+      // Optional pill background if explicitly requested
+      ctx.fillStyle = theme === 'light' ? 'rgba(255, 255, 255, 0.94)' : 'rgba(15, 23, 42, 0.88)';
+      const radius = 18;
+      const x = 10, y = 10, w = canvas.width - 20, h = canvas.height - 20;
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + w - radius, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+      ctx.lineTo(x + w, y + h - radius);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+      ctx.lineTo(x + radius, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+      ctx.fill();
 
-    // Border
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 3;
-    ctx.stroke();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    } else {
+      // Clean typography without any bounding box!
+      // Outline halo highlights tone according to environment (crisp white in light mode, deep dark in dark mode)
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = 6;
+      ctx.strokeStyle = theme === 'light' ? 'rgba(255, 255, 255, 0.96)' : 'rgba(9, 13, 22, 0.96)';
+      ctx.font = `900 ${fontSize + 8}px ui-monospace, SFMono-Regular, monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.strokeText(text, canvas.width / 2, canvas.height / 2);
+    }
 
-    // Text
+    // Text fill with vector's distinct color
     ctx.fillStyle = color;
-    ctx.font = `bold ${fontSize}px ui-monospace, SFMono-Regular, monospace`;
+    ctx.font = `900 ${fontSize + 8}px ui-monospace, SFMono-Regular, monospace`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(text, canvas.width / 2, canvas.height / 2);
@@ -94,7 +114,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     texture.minFilter = THREE.LinearFilter;
     const spriteMaterial = new THREE.SpriteMaterial({ map: texture, depthTest: false });
     const sprite = new THREE.Sprite(spriteMaterial);
-    sprite.scale.set(1.5, 0.4, 1);
+    sprite.scale.set(1.6, 0.36, 1);
     return sprite;
   };
 
@@ -182,10 +202,10 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     controlsRef.current = controls;
 
     // Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
     scene.add(ambientLight);
 
-    const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.2);
+    const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.3);
     dirLight1.position.set(6, 12, 8);
     dirLight1.castShadow = true;
     scene.add(dirLight1);
@@ -241,6 +261,12 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     };
   }, []);
 
+  // Dynamically update scene background when theme switches
+  useEffect(() => {
+    if (!sceneRef.current) return;
+    sceneRef.current.background = new THREE.Color(theme === 'light' ? '#f1f5f9' : '#090d16');
+  }, [theme]);
+
   // Update Environment & Axes
   useEffect(() => {
     if (!axesGroupRef.current || !environmentGroupRef.current) return;
@@ -251,7 +277,12 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     }
 
     if (showGrid) {
-      const grid = new THREE.GridHelper(10, 20, 0x334155, 0x1e293b);
+      const grid = new THREE.GridHelper(
+        10,
+        20,
+        theme === 'light' ? 0x94a3b8 : 0x334155,
+        theme === 'light' ? 0xcfd8dc : 0x1e293b
+      );
       grid.position.y = 0;
       axesGroupRef.current.add(grid);
     }
@@ -272,15 +303,15 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       axesGroupRef.current.add(arrowZ);
 
       if (showLabels) {
-        const lblX = createTextSprite('+X', '#ef4444', 'rgba(239, 68, 68, 0.15)', 32);
+        const lblX = createTextSprite('+X', '#ef4444', 30, false);
         lblX.position.set(axisLength + 0.35, 0, 0);
         axesGroupRef.current.add(lblX);
 
-        const lblY = createTextSprite('+Y', '#22c55e', 'rgba(34, 197, 94, 0.15)', 32);
+        const lblY = createTextSprite('+Y', '#22c55e', 30, false);
         lblY.position.set(0, axisLength + 0.35, 0);
         axesGroupRef.current.add(lblY);
 
-        const lblZ = createTextSprite('+Z', '#3b82f6', 'rgba(59, 130, 246, 0.15)', 32);
+        const lblZ = createTextSprite('+Z', '#3b82f6', 30, false);
         lblZ.position.set(0, 0, axisLength + 0.35);
         axesGroupRef.current.add(lblZ);
       }
@@ -296,7 +327,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       // Free Body: Metallic core sphere with coordinate ring
       const sphereGeom = new THREE.SphereGeometry(0.28, 32, 32);
       const sphereMat = new THREE.MeshStandardMaterial({
-        color: 0x94a3b8,
+        color: theme === 'light' ? 0x64748b : 0x94a3b8,
         metalness: 0.8,
         roughness: 0.25,
       });
@@ -306,7 +337,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
 
       // Center point highlight
       const pointGeom = new THREE.SphereGeometry(0.06, 16, 16);
-      const pointMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc });
+      const pointMat = new THREE.MeshBasicMaterial({ color: theme === 'light' ? 0x0f172a : 0xf8fafc });
       const point = new THREE.Mesh(pointGeom, pointMat);
       environmentGroupRef.current.add(point);
     } else {
@@ -323,7 +354,7 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       // Hanging crate / weight
       const boxGeom = new THREE.BoxGeometry(0.65, 0.65, 0.65);
       const boxMat = new THREE.MeshStandardMaterial({
-        color: 0x334155,
+        color: theme === 'light' ? 0x475569 : 0x334155,
         roughness: 0.5,
         metalness: 0.3,
       });
@@ -333,7 +364,8 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
 
       // Mass label text
       if (showLabels) {
-        const massLabel = createTextSprite(`m = ${massKg} kg`, '#e2e8f0', 'rgba(30, 41, 59, 0.85)', 24);
+        const massLabelColor = theme === 'light' ? '#0f172a' : '#f8fafc';
+        const massLabel = createTextSprite(`m = ${massKg} kg`, massLabelColor, 22, false);
         massLabel.position.set(0, -0.45, 0.4);
         massGroup.add(massLabel);
       }
@@ -344,9 +376,9 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       const ceilingY = 3.9;
       const ceilingGeom = new THREE.BoxGeometry(6.5, 0.12, 6.5);
       const ceilingMat = new THREE.MeshStandardMaterial({
-        color: 0x1e293b,
+        color: theme === 'light' ? 0xd1d5db : 0x1e293b,
         transparent: true,
-        opacity: 0.5,
+        opacity: theme === 'light' ? 0.7 : 0.5,
         roughness: 0.8,
       });
       const ceiling = new THREE.Mesh(ceilingGeom, ceilingMat);
@@ -354,10 +386,10 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       environmentGroupRef.current.add(ceiling);
 
       // Ceiling grid frame
-      const ceilingEdge = new THREE.BoxHelper(ceiling, 0x475569);
+      const ceilingEdge = new THREE.BoxHelper(ceiling, theme === 'light' ? 0x94a3b8 : 0x475569);
       environmentGroupRef.current.add(ceilingEdge);
     }
-  }, [mode, showGrid, showAxes, showLabels, massKg, objectPos.y]);
+  }, [mode, showGrid, showAxes, showLabels, massKg, objectPos.y, theme]);
 
   // Update Cables & Tension Vectors (in suspended mode)
   useEffect(() => {
@@ -404,14 +436,14 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       cableMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), cableVector.clone().normalize());
       cablesGroupRef.current?.add(cableMesh);
 
-      // Label on anchor
+      // Label on anchor without bounding box
       if (showLabels) {
         const tVal = tensionInfo ? `${tensionInfo.tension} N` : '';
         const anchorLabel = createTextSprite(
           `${anchor.name}${tVal ? ` (T=${tVal})` : ''}`,
           anchor.color,
-          'rgba(15, 23, 42, 0.9)',
-          24
+          22,
+          false
         );
         anchorLabel.position.copy(anchorPos).add(new THREE.Vector3(0, 0.25, 0));
         cablesGroupRef.current?.add(anchorLabel);
@@ -424,9 +456,10 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
         const tensionArrow = createArrow(objectPos, tDir, tLength, anchor.color, false);
         cablesGroupRef.current?.add(tensionArrow);
 
+        // Label on tension without bounding box
         if (showLabels) {
           const midPos = objectPos.clone().add(tDir.clone().multiplyScalar(tLength * 0.7));
-          const tSprite = createTextSprite(`T_${idx + 1}: ${tensionInfo.tension} N`, anchor.color, 'rgba(15, 23, 42, 0.85)', 22);
+          const tSprite = createTextSprite(`T_${idx + 1}: ${tensionInfo.tension} N`, anchor.color, 22, false);
           tSprite.position.copy(midPos).add(new THREE.Vector3(0.1, 0.1, 0.1));
           cablesGroupRef.current?.add(tSprite);
         }
@@ -445,12 +478,13 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
     );
     cablesGroupRef.current.add(weightArrow);
 
+    // Label on weight without bounding box
     if (showLabels) {
-      const wLabel = createTextSprite(`W = ${weightVal.toFixed(1)} N`, '#f43f5e', 'rgba(15, 23, 42, 0.9)', 24);
+      const wLabel = createTextSprite(`W = ${weightVal.toFixed(1)} N`, '#f43f5e', 22, false);
       wLabel.position.copy(objectPos).add(new THREE.Vector3(0.4, -weightLength * 0.6, 0));
       cablesGroupRef.current.add(wLabel);
     }
-  }, [mode, anchors, equilibriumResult, vectorScale, massKg, gravity, showLabels, objectPos.y]);
+  }, [mode, anchors, equilibriumResult, vectorScale, massKg, gravity, showLabels, objectPos.y, theme]);
 
   // Update Applied Force Vectors & Net Resultant Vector
   useEffect(() => {
@@ -474,10 +508,10 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       const arrow = createArrow(objectPos, fDir, arrowLength, f.color, false);
       vectorsGroupRef.current?.add(arrow);
 
-      // Label
+      // Label without bounding box - clean and environment adaptive
       if (showLabels) {
         const tipPos = objectPos.clone().add(fDir.clone().multiplyScalar(arrowLength + 0.25));
-        const label = createTextSprite(`${f.name}: ${fMag.toFixed(1)} N`, f.color, 'rgba(15, 23, 42, 0.9)', 24);
+        const label = createTextSprite(`${f.name}: ${fMag.toFixed(1)} N`, f.color, 24, false);
         label.position.copy(tipPos);
         vectorsGroupRef.current?.add(label);
       }
@@ -520,19 +554,21 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
       const netArrow = createArrow(objectPos, netDir, netLength, '#eab308', true);
       vectorsGroupRef.current.add(netArrow);
 
+      // Label on Net Force without bounding box
       if (showLabels) {
         const netTip = objectPos.clone().add(netDir.clone().multiplyScalar(netLength + 0.3));
+        const netColor = theme === 'light' ? '#b45309' : '#facc15';
         const netLabel = createTextSprite(
           `F_net: ${netForce.magnitude.toFixed(1)} N`,
-          '#facc15',
-          'rgba(234, 179, 8, 0.25)',
-          28
+          netColor,
+          26,
+          false
         );
         netLabel.position.copy(netTip);
         vectorsGroupRef.current.add(netLabel);
       }
     }
-  }, [forces, netForce, equilibriumResult, mode, vectorScale, showLabels, showComponents, objectPos.y]);
+  }, [forces, netForce, equilibriumResult, mode, vectorScale, showLabels, showComponents, objectPos.y, theme]);
 
   // Camera presets
   const setCameraView = (view: 'iso' | 'front' | 'top' | 'side') => {
@@ -565,68 +601,141 @@ export const Viewport3D: React.FC<Viewport3DProps> = ({
   };
 
   return (
-    <div ref={containerRef} className="relative w-full h-full overflow-hidden bg-slate-950 select-none">
+    <div
+      ref={containerRef}
+      className={`relative w-full h-full overflow-hidden select-none transition-colors duration-300 ${
+        theme === 'light' ? 'bg-slate-100' : 'bg-slate-950'
+      }`}
+    >
       <canvas ref={canvasRef} className="w-full h-full block cursor-grab active:cursor-grabbing" />
 
-      {/* Floating 3D Navigation Controls */}
-      <div className="absolute top-4 left-4 z-10 flex items-center gap-1.5 bg-slate-900/85 backdrop-blur-md border border-slate-700/60 p-1.5 rounded-xl shadow-lg">
-        <button
-          type="button"
-          onClick={() => setCameraView('iso')}
-          className="px-2.5 py-1 text-xs font-mono font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors flex items-center gap-1"
-          title="Vista Isométrica 3D"
+      {/* Top Left Stack: Perspectivas 3D + Indicador de Estado en columna vertical */}
+      <div className="absolute top-4 left-4 z-20 flex flex-col items-start gap-2 pointer-events-none">
+        {/* Fila 1: Botones de Perspectiva 3D */}
+        <div
+          className={`pointer-events-auto flex items-center gap-1.5 backdrop-blur-md border p-1.5 rounded-xl shadow-lg transition-colors ${
+            theme === 'light'
+              ? 'bg-white/95 border-slate-300 text-slate-800 shadow-slate-300/40'
+              : 'bg-slate-900/90 border-slate-700/70 text-slate-200 shadow-black/50'
+          }`}
         >
-          <Compass className="w-3.5 h-3.5 text-cyan-400" />
-          3D Iso
-        </button>
-        <button
-          type="button"
-          onClick={() => setCameraView('front')}
-          className="px-2 py-1 text-xs font-mono font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
-          title="Vista Frontal (Plano XY)"
+          <button
+            type="button"
+            onClick={() => setCameraView('iso')}
+            className={`px-2.5 py-1 text-xs font-mono font-medium rounded-lg transition-colors flex items-center gap-1 cursor-pointer ${
+              theme === 'light'
+                ? 'text-slate-700 hover:text-slate-950 hover:bg-slate-100'
+                : 'text-slate-300 hover:text-white hover:bg-slate-800'
+            }`}
+            title="Vista Isométrica 3D"
+          >
+            <Compass className="w-3.5 h-3.5 text-cyan-500" />
+            3D Iso
+          </button>
+          <button
+            type="button"
+            onClick={() => setCameraView('front')}
+            className={`px-2 py-1 text-xs font-mono font-medium rounded-lg transition-colors cursor-pointer ${
+              theme === 'light'
+                ? 'text-slate-700 hover:text-slate-950 hover:bg-slate-100'
+                : 'text-slate-300 hover:text-white hover:bg-slate-800'
+            }`}
+            title="Vista Frontal (Plano XY)"
+          >
+            Frontal (XY)
+          </button>
+          <button
+            type="button"
+            onClick={() => setCameraView('top')}
+            className={`px-2 py-1 text-xs font-mono font-medium rounded-lg transition-colors cursor-pointer ${
+              theme === 'light'
+                ? 'text-slate-700 hover:text-slate-950 hover:bg-slate-100'
+                : 'text-slate-300 hover:text-white hover:bg-slate-800'
+            }`}
+            title="Vista Superior (Plano XZ)"
+          >
+            Superior (XZ)
+          </button>
+          <button
+            type="button"
+            onClick={() => setCameraView('side')}
+            className={`px-2 py-1 text-xs font-mono font-medium rounded-lg transition-colors cursor-pointer ${
+              theme === 'light'
+                ? 'text-slate-700 hover:text-slate-950 hover:bg-slate-100'
+                : 'text-slate-300 hover:text-white hover:bg-slate-800'
+            }`}
+            title="Vista Lateral (Plano YZ)"
+          >
+            Lateral (YZ)
+          </button>
+          <div className={`w-px h-4 mx-0.5 ${theme === 'light' ? 'bg-slate-300' : 'bg-slate-700'}`} />
+          <button
+            type="button"
+            onClick={resetCamera}
+            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+              theme === 'light'
+                ? 'text-slate-500 hover:text-slate-950 hover:bg-slate-100'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+            title="Restablecer Cámara"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Fila 2: Indicador de Modo y Estado del Sistema (ΣF y Equilibrio) a modo de columna */}
+        <div
+          className={`pointer-events-auto flex items-center gap-2.5 backdrop-blur-md border px-3 py-1.5 rounded-xl text-xs font-mono shadow-md transition-colors ${
+            theme === 'light'
+              ? 'bg-white/95 border-slate-300 text-slate-800 shadow-slate-300/40'
+              : 'bg-slate-900/90 border-slate-700/70 text-slate-200 shadow-black/50'
+          }`}
         >
-          Frontal (XY)
-        </button>
-        <button
-          type="button"
-          onClick={() => setCameraView('top')}
-          className="px-2 py-1 text-xs font-mono font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
-          title="Vista Superior (Plano XZ)"
-        >
-          Superior (XZ)
-        </button>
-        <button
-          type="button"
-          onClick={() => setCameraView('side')}
-          className="px-2 py-1 text-xs font-mono font-medium rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
-          title="Vista Lateral (Plano YZ)"
-        >
-          Lateral (YZ)
-        </button>
-        <div className="w-px h-4 bg-slate-700 mx-0.5" />
-        <button
-          type="button"
-          onClick={resetCamera}
-          className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
-          title="Restablecer Cámara"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-        </button>
+          <span className={theme === 'light' ? 'text-slate-500' : 'text-slate-400'}>Modo:</span>
+          <span className={`font-bold uppercase ${theme === 'light' ? 'text-cyan-700' : 'text-cyan-300'}`}>
+            {mode === 'free' ? 'Objeto Libre' : `Suspendido (${cableCount || anchors.length} Cables)`}
+          </span>
+          <span className={theme === 'light' ? 'text-slate-300' : 'text-slate-600'}>•</span>
+          <span className={theme === 'light' ? 'text-slate-500' : 'text-slate-400'}>|F_net|:</span>
+          <span className={`font-bold ${netForce.magnitude < 0.05 ? 'text-emerald-500' : 'text-amber-500'}`}>
+            {netForce.magnitude.toFixed(1)} N
+          </span>
+          <span className={theme === 'light' ? 'text-slate-300' : 'text-slate-600'}>•</span>
+          <span
+            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+              equilibriumResult.isEquilibrium
+                ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800'
+                : 'bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800'
+            }`}
+          >
+            {equilibriumResult.isEquilibrium ? 'Equilibrio' : 'Dinámico'}
+          </span>
+        </div>
       </div>
 
-      {/* Axis Guide Legend in corner */}
-      <div className="absolute bottom-4 left-4 z-10 pointer-events-none bg-slate-900/80 backdrop-blur-md border border-slate-800/80 px-3 py-2 rounded-xl text-xs font-mono flex items-center gap-3">
-        <span className="text-slate-400 text-[11px] font-sans">Ejes:</span>
-        <span className="flex items-center gap-1 text-rose-400">
+      {/* Axis Guide Legend in bottom corner */}
+      <div
+        className={`absolute bottom-4 left-4 z-10 pointer-events-none backdrop-blur-md border px-3 py-2 rounded-xl text-xs font-mono flex items-center gap-3 transition-colors ${
+          theme === 'light'
+            ? 'bg-white/90 border-slate-300 text-slate-800 shadow-md'
+            : 'bg-slate-900/80 border-slate-800/80 text-slate-200'
+        }`}
+      >
+        <span className="text-[11px] font-sans opacity-70">Ejes:</span>
+        <span className="flex items-center gap-1 text-rose-500 font-semibold">
           <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block" /> +X
         </span>
-        <span className="flex items-center gap-1 text-emerald-400">
+        <span className="flex items-center gap-1 text-emerald-600 font-semibold">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" /> +Y
         </span>
-        <span className="flex items-center gap-1 text-blue-400">
+        <span className="flex items-center gap-1 text-blue-600 font-semibold">
           <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block" /> +Z
         </span>
-        <span className="border-l border-slate-700 pl-2 text-amber-400 flex items-center gap-1">
+        <span
+          className={`border-l pl-2 text-amber-500 font-semibold flex items-center gap-1 ${
+            theme === 'light' ? 'border-slate-300' : 'border-slate-700'
+          }`}
+        >
           <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" /> F_net
         </span>
       </div>
